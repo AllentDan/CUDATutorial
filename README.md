@@ -1,2 +1,2 @@
-# CUDATutorial
-This is a tutorial of cuda programming.
+## Introduction
+This is a learning note of cuda programming for novices.
