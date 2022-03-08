@@ -60,4 +60,31 @@ int main(){
 
     cublasHandle_t handle;
     cublasCreate(&handle);
+
+    // scalaing factors
+    float alpha = 1.0f;
+    float beta = 0.0f;
+
+    // Calculate: c = (alpha*A) * B + (beta*C)
+    // (m X n) * (n X k) = (m X k)
+    // Signature: handle, operation, operation, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc
+    cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, n, n, &alpha, d_a, n, d_b, n, &beta, d_c, n);
+    // where operation can be CUBLAS_OP_N or CUBLAS_OP_T, the former do nothing while the latter do transpose for the matrix
+
+    // Copy back the threee matrices
+    cudaMemcpy(h_a, d_a, bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_b, d_b, bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost);
+
+    // Verify solution
+    verify_result(h_a, h_b, h_c, n);
+    
+    printf("COMPLETED SUCCESSFULLY\n");
+
+    // Free memory on device
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+
+    return 0;
 }
