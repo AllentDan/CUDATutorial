@@ -29,3 +29,5 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+third_party/
