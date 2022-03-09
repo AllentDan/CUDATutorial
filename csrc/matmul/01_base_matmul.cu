@@ -70,7 +70,7 @@ int main() {
   cudaMemcpy(d_a, h_a.data(), bytes, cudaMemcpyHostToDevice);
   cudaMemcpy(d_b, h_b.data(), bytes, cudaMemcpyHostToDevice);
 
-  // Threads per CTA dimension
+  // Threads per CTA(compute thread array)  dimension
   int THREADS = 32;
 
   // Blocks per grid dimension (assumes THREADS divides N evenly)
