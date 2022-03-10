@@ -13,7 +13,7 @@ using std::vector;
 const int N = 1 << 10;
 const int SHMEM_SIZE = 1 << 10;
 
-__global__ void matrixMul(const int *a, const int *b, int *c) {
+__global__ void matrixMul(const float *a, const float *b, float *c) {
   // Block row and column
   int blockRow = blockIdx.y;
   int blockCol = blockIdx.x;
@@ -27,16 +27,19 @@ __global__ void matrixMul(const int *a, const int *b, int *c) {
   int col = blockIdx.x * blockDim.x + threadIdx.x;
 
   // Accumulate in temporary variable
-  int tmp = 0;
+  float tmp = 0;
 
-  // Sweep tile across matrix
+  // Sweep the tile across the Matrix
   for (int i = 0; i < N; i += blockDim.x) {
 
     // Statically allocated shared memory
-    __shared__ int s_a[SHMEM_SIZE];
-    __shared__ int s_b[SHMEM_SIZE];
+    // here SHMEM_SIZE = BLOCK_SIZE * BLOCK_SIZE, it can be imagined as a
+    // 2D array, a cache tile here is exactly the same size as a block
+    __shared__ float s_a[SHMEM_SIZE];
+    __shared__ float s_b[SHMEM_SIZE];
 
     // Load in elements for this tile
+    // rowWithin * BLOCK_SIZE + colWithin
     s_a[threadIdx.y * blockDim.x + threadIdx.x] = a[row * N + i + threadIdx.x];
     s_b[threadIdx.y * blockDim.x + threadIdx.x] =
         b[i * N + threadIdx.y * N + col];
@@ -60,14 +63,14 @@ __global__ void matrixMul(const int *a, const int *b, int *c) {
 }
 
 // Check result on the CPU
-void verify_result(vector<int> &a, vector<int> &b, vector<int> &c) {
+void verify_result(vector<float> &a, vector<float> &b, vector<float> &c) {
   // For every row...
-  for (int i = 0; i < N; i++) {
+  for (float i = 0; i < N; i++) {
     // For every column...
-    for (int j = 0; j < N; j++) {
+    for (float j = 0; j < N; j++) {
       // For every element in the row-column pair
-      int tmp = 0;
-      for (int k = 0; k < N; k++) {
+      float tmp = 0;
+      for (float k = 0; k < N; k++) {
         // Accumulate the partial results
         tmp += a[i * N + k] * b[k * N + j];
       }
@@ -80,19 +83,19 @@ void verify_result(vector<int> &a, vector<int> &b, vector<int> &c) {
 
 int main() {
   // Size (in bytes) of matrix
-  size_t bytes = N * N * sizeof(int);
+  size_t bytes = N * N * sizeof(float);
 
   // Host vectors
-  vector<int> h_a(N * N);
-  vector<int> h_b(N * N);
-  vector<int> h_c(N * N);
+  vector<float> h_a(N * N);
+  vector<float> h_b(N * N);
+  vector<float> h_c(N * N);
 
   // Initialize matrices
   generate(h_a.begin(), h_a.end(), []() { return rand() % 100; });
   generate(h_b.begin(), h_b.end(), []() { return rand() % 100; });
 
   // Allocate device memory
-  int *d_a, *d_b, *d_c;
+  float *d_a, *d_b, *d_c;
   cudaMalloc(&d_a, bytes);
   cudaMalloc(&d_b, bytes);
   cudaMalloc(&d_c, bytes);
@@ -102,11 +105,11 @@ int main() {
   cudaMemcpy(d_b, h_b.data(), bytes, cudaMemcpyHostToDevice);
 
   // Threads per CTA dimension
-  int THREADS = 32;
+  float THREADS = 32;
 
   // Blocks per grid dimension (assumes THREADS divides N evenly)
   // Here we can also treat a cache tile THREADS * THREADS = N = the size of block
-  int BLOCKS = N / THREADS;
+  float BLOCKS = N / THREADS;
 
   // Use dim3 structs for block  and grid dimensions
   dim3 threads(THREADS, THREADS);
@@ -116,6 +119,8 @@ int main() {
   matrixMul<<<blocks, threads>>>(d_a, d_b, d_c);
 
   // Copy back to the host
+  // cudaMemcpy(h_a.data(), d_a, bytes, cudaMemcpyDeviceToHost);
+  // cudaMemcpy(h_b.data(), d_b, bytes, cudaMemcpyDeviceToHost);
   cudaMemcpy(h_c.data(), d_c, bytes, cudaMemcpyDeviceToHost);
 
   // Check result
