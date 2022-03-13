@@ -19,9 +19,8 @@ tags: CUDA
 [Install NVIDIA Driver and CUDA](https://gist.github.com/wangruohui/df039f0dc434d6486f5d4d098aa52d07)
 ## Demos
 ### C++
-<details> 
-<summary><font size="4" color="green">VS自带Demo</font></summary> 
-<pre><code class="language-cpp">
+Windows环境配置广域完，新建Cuda项目，会有一个Demo，可以直接编译运行。
+```cpp
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
@@ -142,9 +141,122 @@ Error:
     
     return cudaStatus;
 }
-</code>
-</pre> </details>
+```
 
+Linux中正常安装完成，可以用`nvcc -V`查看版本确定安装正确。`nvcc`就是cuda代码的编译器，可以通过`nvcc file.cu`编译出可执行文件`a.out`。运行`./a.out`，输出`COMPLETED SUCCESSFULLY`。
+```cpp
+// This program computes the sum of two vectors of length N
+// By: Nick from CoffeeBeforeArch
+
+#include <algorithm>
+#include <cassert>
+#include <iostream>
+#include <vector>
+
+// CUDA kernel for vector addition
+// __global__ means this is called from the CPU, and runs on the GPU
+__global__ void vectorAdd(const int *__restrict a, const int *__restrict b,
+                          int *__restrict c, int N) {
+  // Calculate global thread ID
+  int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+  // Boundary check
+  if (tid < N) c[tid] = a[tid] + b[tid];
+}
+
+// Check vector add result
+void verify_result(std::vector<int> &a, std::vector<int> &b,
+                   std::vector<int> &c) {
+  for (int i = 0; i < a.size(); i++) {
+    assert(c[i] == a[i] + b[i]);
+  }
+}
+
+int main() {
+  // Array size of 2^16 (65536 elements)
+  constexpr int N = 1 << 16;
+  constexpr size_t bytes = sizeof(int) * N;
+
+  // Vectors for holding the host-side (CPU-side) data
+  std::vector<int> a;
+  a.reserve(N);
+  std::vector<int> b;
+  b.reserve(N);
+  std::vector<int> c;
+  c.reserve(N);
+
+  // Initialize random numbers in each array
+  for (int i = 0; i < N; i++) {
+    a.push_back(rand() % 100);
+    b.push_back(rand() % 100);
+  }
+
+  // Allocate memory on the device
+  int *d_a, *d_b, *d_c;
+  cudaMalloc(&d_a, bytes);
+  cudaMalloc(&d_b, bytes);
+  cudaMalloc(&d_c, bytes);
+
+  // Copy data from the host to the device (CPU -> GPU)
+  cudaMemcpy(d_a, a.data(), bytes, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_b, b.data(), bytes, cudaMemcpyHostToDevice);
+
+  // Threads per CTA (1024)
+  int NUM_THREADS = 1 << 10;
+
+  // CTAs per Grid
+  // We need to launch at LEAST as many threads as we have elements
+  // This equation pads an extra CTA to the grid if N cannot evenly be divided
+  // by NUM_THREADS (e.g. N = 1025, NUM_THREADS = 1024)
+  int NUM_BLOCKS = (N + NUM_THREADS - 1) / NUM_THREADS;
+
+  // Launch the kernel on the GPU
+  // Kernel calls are asynchronous (the CPU program continues execution after
+  // call, but no necessarily before the kernel finishes)
+  vectorAdd<<<NUM_BLOCKS, NUM_THREADS>>>(d_a, d_b, d_c, N);
+
+  // Copy sum vector from device to host
+  // cudaMemcpy is a synchronous operation, and waits for the prior kernel
+  // launch to complete (both go to the default stream in this case).
+  // Therefore, this cudaMemcpy acts as both a memcpy and synchronization
+  // barrier.
+  cudaMemcpy(c.data(), d_c, bytes, cudaMemcpyDeviceToHost);
+
+  // Check result for errors
+  verify_result(a, b, c);
+
+  // Free memory on device
+  cudaFree(d_a);
+  cudaFree(d_b);
+  cudaFree(d_c);
+
+  std::cout << "COMPLETED SUCCESSFULLY\n";
+
+  return 0;
+}
+```
+
+
+```c
+// Kernel definition
+__global__ void MatAdd(float A[N][N], float B[N][N],
+                       float C[N][N])
+{
+    int i = threadIdx.x;
+    int j = threadIdx.y;
+    C[i][j] = A[i][j] + B[i][j];
+}
+
+int main()
+{
+    ...
+    // Kernel invocation with one block of N * N * 1 threads
+    int numBlocks = 1;
+    dim3 threadsPerBlock(N, N);
+    MatAdd<<<numBlocks, threadsPerBlock>>>(A, B, C);
+    ...
+}
+```
 ### python
 三种编译运行方式：
 - JIT
@@ -157,9 +269,15 @@ Error:
 - block
 - grid
 
-核函数(kernel)
-- <<<>>>运算符
-- __global__
+关键字
+- `__global__`
+- `__device__`
+- `__host__`
+- `__restrict__`
+- `__shared__`
+
+运算符
+- <<<>>>
 
 编译器
 - nvcc
@@ -167,9 +285,10 @@ Error:
 工具
 - nvprof
 - nsight (VS only)
+
 ### 常用优化方式
 - tmp
-- __strict
+- `__strict__`
 - cache tile
 - cublas
 - stream

@@ -29,8 +29,7 @@ __global__ void matrixMul(const int *a, const int *b, int *c) {
   for (int i = 0; i < N; i += blockDim.x) {
     // Load in elements for this tile
     s_a[threadIdx.y * blockDim.x + threadIdx.x] = a[row * N + i + threadIdx.x];
-    s_b[threadIdx.y * blockDim.x + threadIdx.x] =
-        b[i * N + threadIdx.y * N + col];
+    s_b[threadIdx.y * blockDim.x + threadIdx.x] = b[i * N + threadIdx.y * N + col];
 
     // Wait for both tiles to be loaded in before doing computation
     __syncthreads();
