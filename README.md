@@ -16,5 +16,5 @@ ImportError: DLL load failed:
 
 ### References
 - [cuda-c-programming-guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html)
-- [NN-CUDA-Example](git@github.com:godweiyang/NN-CUDA-Example.git)
-- [cuda_programming](git@github.com:CoffeeBeforeArch/cuda_programming.git)
+- [NN-CUDA-Example](https://github.com/godweiyang/NN-CUDA-Example)
+- [cuda_programming](https://github.com/CoffeeBeforeArch/cuda_programming)
